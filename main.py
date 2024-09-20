@@ -1,5 +1,5 @@
 import tkinter as tk
-from tkinter import filedialog, scrolledtext, messagebox
+from tkinter import filedialog, scrolledtext, messagebox, ttk
 import subprocess
 import threading
 import os
@@ -10,51 +10,56 @@ class MultiScriptApp:
     def __init__(self, root):
         self.root = root
         self.root.title("Multi-Script Runner")
-        self.root.geometry("800x600")
+        self.root.attributes('-fullscreen', True)  # Open as full screen
 
         self.scripts = []
         self.processes = []
         self.output_windows = []
         self.settings_file = "script_settings.json"
-        self.status_var = tk.StringVar()
 
         self.create_widgets()
-        self.load_settings()  # Load settings after widgets are created
+        self.load_settings()
+
+        # Add a key binding to exit full screen
+        self.root.bind("<Escape>", self.toggle_fullscreen)
 
     def create_widgets(self):
         # Frame for buttons
-        frame = tk.Frame(self.root)
-        frame.pack(side=tk.TOP, fill=tk.X)
+        button_frame = ttk.Frame(self.root)
+        button_frame.pack(side=tk.TOP, fill=tk.X, padx=10, pady=5)
 
-        self.add_script_button = tk.Button(frame, text="Add Script", command=self.add_script)
-        self.add_script_button.pack(side=tk.LEFT, padx=5, pady=5)
+        self.add_script_button = ttk.Button(button_frame, text="Add Script", command=self.add_script)
+        self.add_script_button.pack(side=tk.LEFT, padx=5)
 
-        self.run_button = tk.Button(frame, text="Run Scripts", command=self.run_scripts)
-        self.run_button.pack(side=tk.LEFT, padx=5, pady=5)
+        self.run_button = ttk.Button(button_frame, text="Run Scripts", command=self.run_scripts)
+        self.run_button.pack(side=tk.LEFT, padx=5)
 
-        self.stop_button = tk.Button(frame, text="Stop Scripts", command=self.stop_scripts)
-        self.stop_button.pack(side=tk.LEFT, padx=5, pady=5)
+        self.stop_button = ttk.Button(button_frame, text="Stop Scripts", command=self.stop_scripts)
+        self.stop_button.pack(side=tk.LEFT, padx=5)
 
-        self.save_button = tk.Button(frame, text="Save Settings", command=self.save_settings)
-        self.save_button.pack(side=tk.LEFT, padx=5, pady=5)
+        self.remove_script_button = ttk.Button(button_frame, text="Remove Script", command=self.remove_script)
+        self.remove_script_button.pack(side=tk.LEFT, padx=5)
 
-        # Frame for script list and output
-        self.listbox = tk.Listbox(self.root)
-        self.listbox.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=5, pady=5)
+        self.save_button = ttk.Button(button_frame, text="Save Settings", command=self.save_settings)
+        self.save_button.pack(side=tk.LEFT, padx=5)
 
-        self.output_frame = tk.Frame(self.root)
-        self.output_frame.pack(side=tk.RIGHT, fill=tk.BOTH, expand=True)
+        # Frame for script list
+        self.script_frame = ttk.Frame(self.root)
+        self.script_frame.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=10, pady=5)
 
-        # Footer for status
-        self.footer_frame = tk.Frame(self.root)
-        self.footer_frame.pack(side=tk.BOTTOM, fill=tk.X)
+        self.listbox = tk.Listbox(self.script_frame)
+        self.listbox.pack(fill=tk.BOTH, expand=True)
 
-        self.status_label = tk.Label(self.footer_frame, textvariable=self.status_var, font=("Arial", 10))
-        self.status_label.pack(side=tk.LEFT, padx=5, pady=5)
+        # Frame for output
+        self.output_frame = ttk.Frame(self.root)
+        self.output_frame.pack(side=tk.RIGHT, fill=tk.BOTH, expand=True, padx=10, pady=5)
 
-        self.status_indicator = tk.Canvas(self.footer_frame, width=15, height=15)
-        self.status_indicator.pack(side=tk.LEFT, padx=5)
-        self.update_status_indicator("stopped")
+        self.status_bar = ttk.Label(self.root, text="Status: Ready", relief=tk.SUNKEN, anchor='w')
+        self.status_bar.pack(side=tk.BOTTOM, fill=tk.X)
+
+    def toggle_fullscreen(self, event=None):
+        current_state = self.root.attributes('-fullscreen')
+        self.root.attributes('-fullscreen', not current_state)
 
     def add_script(self):
         script_path = filedialog.askopenfilename(filetypes=[("Python Files", "*.py")])
@@ -64,35 +69,41 @@ class MultiScriptApp:
             self.add_output_window(script_path)
 
     def add_output_window(self, script_path):
-        # Create a frame for the output window with a title
-        script_name = os.path.basename(script_path)
-        output_window = scrolledtext.ScrolledText(self.output_frame, wrap=tk.WORD, height=10)
-        output_window.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
+        output_frame = ttk.Frame(self.output_frame)
+        output_frame.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
 
-        # Insert the title and the script name at the top
-        output_window.insert(tk.END, f"Output for {script_name}:\n\n")
+        label = ttk.Label(output_frame, text=os.path.basename(script_path))
+        label.pack(anchor='nw')
+
+        output_window = scrolledtext.ScrolledText(output_frame, wrap=tk.WORD, height=10)
+        output_window.pack(fill=tk.BOTH, expand=True)
+        output_window.insert(tk.END, f"Output for {os.path.basename(script_path)}:\n")
         self.output_windows.append(output_window)
-
-        # Set the title of the output window as a label
-        title_label = tk.Label(self.output_frame, text=f"Output for {script_name}", font=("Arial", 12, "bold"))
-        title_label.pack(side=tk.TOP, pady=(5, 0))
 
     def run_scripts(self):
         self.processes = []
+        running_scripts = []
         for i, script in enumerate(self.scripts):
             process = subprocess.Popen(["python3", script], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
             self.processes.append(process)
+            running_scripts.append(os.path.basename(script))
             threading.Thread(target=self.update_output, args=(process, self.output_windows[i])).start()
 
-        self.update_status_indicator("running")
-        self.status_var.set("Scripts are running...")
+        self.status_bar.config(text=f"Running all scripts")
 
     def stop_scripts(self):
         for process in self.processes:
             process.terminate()
+        self.status_bar.config(text="All scripts stopped.")
 
-        self.update_status_indicator("stopped")
-        self.status_var.set("Scripts have been stopped.")
+    def remove_script(self):
+        selected_index = self.listbox.curselection()
+        if selected_index:
+            index = selected_index[0]
+            del self.scripts[index]
+            self.listbox.delete(index)
+            self.output_windows[index].destroy()
+            del self.output_windows[index]
 
     def update_output(self, process, output_window):
         while True:
@@ -107,9 +118,7 @@ class MultiScriptApp:
     def save_settings(self):
         with open(self.settings_file, 'w') as f:
             json.dump(self.scripts, f)
-        self.status_var.set("Settings saved.")
-        self.update_status_indicator("saved")
-        messagebox.showinfo("Settings Saved", "Script settings saved successfully.")
+        self.status_bar.config(text="Settings saved.")
 
     def load_settings(self):
         if os.path.exists(self.settings_file):
@@ -118,15 +127,6 @@ class MultiScriptApp:
                 for script in self.scripts:
                     self.listbox.insert(tk.END, script)
                     self.add_output_window(script)
-
-    def update_status_indicator(self, status):
-        self.status_indicator.delete("all")
-        if status == "running":
-            self.status_indicator.create_oval(3, 3, 12, 12, fill="green")
-        elif status == "stopped":
-            self.status_indicator.create_oval(3, 3, 12, 12, fill="red")
-        elif status == "saved":
-            self.status_indicator.create_oval(3, 3, 12, 12, fill="orange")
 
 
 if __name__ == "__main__":
