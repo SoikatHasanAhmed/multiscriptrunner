@@ -17,7 +17,7 @@ class MultiScriptApp:
         self.settings_file = "script_settings.json"
 
         self.create_widgets()
-        self.load_settings()  # Move this call after widgets are created
+        self.load_settings()  # Load settings after widgets are created
 
     def create_widgets(self):
         # Frame for buttons
@@ -51,10 +51,18 @@ class MultiScriptApp:
             self.add_output_window(script_path)
 
     def add_output_window(self, script_path):
+        # Create a frame for the output window with a title
+        script_name = os.path.basename(script_path)
         output_window = scrolledtext.ScrolledText(self.output_frame, wrap=tk.WORD, height=10)
         output_window.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
-        output_window.insert(tk.END, f"Output for {os.path.basename(script_path)}\n")
+
+        # Insert the title and the script name at the top
+        output_window.insert(tk.END, f"Output for {script_name}:\n\n")
         self.output_windows.append(output_window)
+
+        # Set the title of the output window as a label
+        title_label = tk.Label(self.output_frame, text=f"Output for {script_name}", font=("Arial", 12, "bold"))
+        title_label.pack(side=tk.TOP, pady=(5, 0))
 
     def run_scripts(self):
         self.processes = []
