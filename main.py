@@ -5,6 +5,7 @@ import threading
 import os
 import json
 
+
 class MultiScriptApp:
     def __init__(self, root):
         self.root = root
@@ -15,6 +16,7 @@ class MultiScriptApp:
         self.processes = []
         self.output_windows = []
         self.settings_file = "script_settings.json"
+        self.status_var = tk.StringVar()
 
         self.create_widgets()
         self.load_settings()  # Load settings after widgets are created
@@ -42,6 +44,17 @@ class MultiScriptApp:
 
         self.output_frame = tk.Frame(self.root)
         self.output_frame.pack(side=tk.RIGHT, fill=tk.BOTH, expand=True)
+
+        # Footer for status
+        self.footer_frame = tk.Frame(self.root)
+        self.footer_frame.pack(side=tk.BOTTOM, fill=tk.X)
+
+        self.status_label = tk.Label(self.footer_frame, textvariable=self.status_var, font=("Arial", 10))
+        self.status_label.pack(side=tk.LEFT, padx=5, pady=5)
+
+        self.status_indicator = tk.Canvas(self.footer_frame, width=15, height=15)
+        self.status_indicator.pack(side=tk.LEFT, padx=5)
+        self.update_status_indicator("stopped")
 
     def add_script(self):
         script_path = filedialog.askopenfilename(filetypes=[("Python Files", "*.py")])
@@ -71,9 +84,15 @@ class MultiScriptApp:
             self.processes.append(process)
             threading.Thread(target=self.update_output, args=(process, self.output_windows[i])).start()
 
+        self.update_status_indicator("running")
+        self.status_var.set("Scripts are running...")
+
     def stop_scripts(self):
         for process in self.processes:
             process.terminate()
+
+        self.update_status_indicator("stopped")
+        self.status_var.set("Scripts have been stopped.")
 
     def update_output(self, process, output_window):
         while True:
@@ -88,6 +107,8 @@ class MultiScriptApp:
     def save_settings(self):
         with open(self.settings_file, 'w') as f:
             json.dump(self.scripts, f)
+        self.status_var.set("Settings saved.")
+        self.update_status_indicator("saved")
         messagebox.showinfo("Settings Saved", "Script settings saved successfully.")
 
     def load_settings(self):
@@ -97,6 +118,16 @@ class MultiScriptApp:
                 for script in self.scripts:
                     self.listbox.insert(tk.END, script)
                     self.add_output_window(script)
+
+    def update_status_indicator(self, status):
+        self.status_indicator.delete("all")
+        if status == "running":
+            self.status_indicator.create_oval(3, 3, 12, 12, fill="green")
+        elif status == "stopped":
+            self.status_indicator.create_oval(3, 3, 12, 12, fill="red")
+        elif status == "saved":
+            self.status_indicator.create_oval(3, 3, 12, 12, fill="orange")
+
 
 if __name__ == "__main__":
     root = tk.Tk()
