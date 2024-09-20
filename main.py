@@ -5,12 +5,11 @@ import threading
 import os
 import json
 
-
 class MultiScriptApp:
     def __init__(self, root):
         self.root = root
         self.root.title("Multi-Script Runner")
-        self.root.attributes('-fullscreen', True)  # Open as full screen
+        self.root.geometry("800x600")  # Set initial size
 
         self.scripts = []
         self.processes = []
@@ -20,8 +19,8 @@ class MultiScriptApp:
         self.create_widgets()
         self.load_settings()
 
-        # Add a key binding to exit full screen
-        self.root.bind("<Escape>", self.toggle_fullscreen)
+        # Add a key binding to toggle full screen
+        self.root.bind("<F11>", self.toggle_fullscreen)  # Use F11 to toggle full screen
 
     def create_widgets(self):
         # Frame for buttons
@@ -89,7 +88,7 @@ class MultiScriptApp:
             running_scripts.append(os.path.basename(script))
             threading.Thread(target=self.update_output, args=(process, self.output_windows[i])).start()
 
-        self.status_bar.config(text=f"Running all scripts")
+        self.status_bar.config(text=f"Running: {', '.join(running_scripts)}")
 
     def stop_scripts(self):
         for process in self.processes:
@@ -127,7 +126,6 @@ class MultiScriptApp:
                 for script in self.scripts:
                     self.listbox.insert(tk.END, script)
                     self.add_output_window(script)
-
 
 if __name__ == "__main__":
     root = tk.Tk()
